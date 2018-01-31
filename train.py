@@ -110,6 +110,7 @@ if not args.resume:
     ssd_net.conf.apply(weights_init)
 optimizer = optim.SGD(net.parameters(), lr=args.lr,
                       momentum=args.momentum, weight_decay=args.weight_decay)
+optimizer = optim.Adam(net.parameters(), lr = args.lr, weight_decay = args.weight_decay)
 criterion = MultiBoxLoss(num_classes, 0.5, True, 0, True, 3, 0.5, False, args.cuda)
 
 
@@ -121,12 +122,13 @@ def train():
     epoch = 0
     print('Loading Dataset...')
     if args.datasets == 'voc':
-        train_sets = [('2007', 'trainval'), ('2012', 'trainval')]
+        train_sets = [('2007', 'train'), ('2012', 'train')]
         dataset = VOCDetection(args.voc_root, train_sets, SSDAugmentation(
             ssd_dim, means), AnnotationTransform())
 
     elif args.datasets == 'coco':
         dataset = make_dataset('coco',args.coco_dataroot, args.coco_annfile)
+    print(len(dataset))
     epoch_size = len(dataset) // args.batch_size
     #print('Training SSD on', dataset.name)
     step_index = 0
@@ -190,7 +192,7 @@ def train():
         # backprop
         optimizer.zero_grad()
         loss_l, loss_c = criterion(out, targets)
-        loss = loss_l + loss_c
+        loss = 0.01*loss_l + loss_c
         loss.backward()
         optimizer.step()
         t1 = time.time()

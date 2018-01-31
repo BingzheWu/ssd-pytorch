@@ -2,7 +2,7 @@ import torch
 import torchvision
 
 #from torchvision.datasets import CocoDetection
-from coco import CocoDetection, AnnotationTransform
+from .coco import CocoDetection, AnnotationTransform
 from utils.augmentations import SSDAugmentation
 def make_dataset(dataset_name, dataroot, annFile = None, imageSize = 300):
     if dataset_name == 'coco':

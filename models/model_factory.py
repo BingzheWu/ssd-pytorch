@@ -1,4 +1,4 @@
-from models import *
+from .models import *
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
@@ -21,14 +21,17 @@ model_urls = {
 
 def build_ssd(phase, size = 300, num_classes = 21, net = 'resnet', args = None):
     if net == 'resnet':
-        resnet = resnet_feature(BasicBlock, [2,2,2,2])
-        pretrained_dict = model_zoo.load_url(model_urls['resnet18'])
+        resnet = resnet_feature(BasicBlock, [3,4,6,3])
+        pretrained_dict = model_zoo.load_url(model_urls['resnet34'])
         model_dict = resnet.state_dict()
         pretrained_dict = {k: v for k,v in pretrained_dict.items() if k in model_dict}
         print(pretrained_dict.keys())
         model_dict.update(pretrained_dict)
         resnet.load_state_dict(model_dict)
         ssd_detector = SSD(phase, resnet, num_classes)
+    if net == 'sq_net':
+        sqnet = sq_feature()
+        ssd_detector = SSD(phase, sqnet, num_classes)
     if net == 'vgg16':
         from .ssd import build_ssd_
         ssd_detector = build_ssd_(phase, size, num_classes=num_classes)

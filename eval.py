@@ -24,7 +24,6 @@ import argparse
 import numpy as np
 import pickle
 import cv2
-
 if sys.version_info[0] == 2:
     import xml.etree.cElementTree as ET
 else:
@@ -45,7 +44,7 @@ parser.add_argument('--top_k', default=5, type=int,
 parser.add_argument('--cuda', default=True, type=str2bool,
                     help='Use cuda to train model')
 parser.add_argument('--voc_root', default=VOCroot, help='Location of VOC root directory')
-
+parser.add_argument("--arch", default ='resnet', help = "resnet")
 args = parser.parse_args()
 
 if not os.path.exists(args.save_folder):
@@ -409,7 +408,7 @@ def evaluate_detections(box_list, output_dir, dataset):
 if __name__ == '__main__':
     # load net
     num_classes = len(VOC_CLASSES) + 1 # +1 background
-    net = build_ssd('test', 300, num_classes) # initialize SSD
+    net = build_ssd('test', 300, num_classes, args.arch) # initialize SSD
     net.load_state_dict(torch.load(args.trained_model))
     net.eval()
     print('Finished loading model!')
