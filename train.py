@@ -14,7 +14,7 @@ from layers.modules import MultiBoxLoss
 from models.model_factory import build_ssd
 import numpy as np
 import time
-
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 def str2bool(v):
     return v.lower() in ("yes", "true", "t", "1")
 
@@ -28,10 +28,10 @@ parser.add_argument('--num_workers', default=1, type=int, help='Number of worker
 parser.add_argument('--iterations', default=120000, type=int, help='Number of training iterations')
 parser.add_argument('--start_iter', default=0, type=int, help='Begin counting iterations starting from this value (should be used with resume)')
 parser.add_argument('--cuda', default=True, type=str2bool, help='Use cuda to train model')
-parser.add_argument('--lr', '--learning-rate', default=1e-3, type=float, help='initial learning rate')
-parser.add_argument('--momentum', default=0.9, type=float, help='momentum')
+parser.add_argument('--lr', '--learning-rate', default=5e-3, type=float, help='initial learning rate')
+parser.add_argument('--momentum', default=0.8, type=float, help='momentum')
 parser.add_argument('--weight_decay', default=5e-4, type=float, help='Weight decay for SGD')
-parser.add_argument('--gamma', default=0.1, type=float, help='Gamma update for SGD')
+parser.add_argument('--gamma', default=0.5, type=float, help='Gamma update for SGD')
 parser.add_argument('--log_iters', default=True, type=bool, help='Print the loss at each iteration')
 parser.add_argument('--visdom', default=False, type=str2bool, help='Use visdom to for loss visualization')
 parser.add_argument('--send_images_to_visdom', type=str2bool, default=False, help='Sample a random image from each 10th batch, send it to visdom after augmentations step')
@@ -64,7 +64,7 @@ accum_batch_size = 32
 iter_size = accum_batch_size / batch_size
 max_iter = 220000
 weight_decay = 0.0005
-stepvalues = (80000, 100000, 120000)
+stepvalues = (30000, 100000, 120000)
 gamma = 0.1
 momentum = 0.9
 
@@ -110,7 +110,7 @@ if not args.resume:
     ssd_net.conf.apply(weights_init)
 optimizer = optim.SGD(net.parameters(), lr=args.lr,
                       momentum=args.momentum, weight_decay=args.weight_decay)
-optimizer = optim.Adam(net.parameters(), lr = args.lr, weight_decay = args.weight_decay)
+#optimizer = optim.Adam(net.parameters(), lr = args.lr, weight_decay = args.weight_decay)
 criterion = MultiBoxLoss(num_classes, 0.5, True, 0, True, 3, 0.5, False, args.cuda)
 
 
@@ -122,7 +122,7 @@ def train():
     epoch = 0
     print('Loading Dataset...')
     if args.datasets == 'voc':
-        train_sets = [('2007', 'train'), ('2012', 'train')]
+        train_sets = [('2007', 'trainval'), ('2012', 'trainval')]
         dataset = VOCDetection(args.voc_root, train_sets, SSDAugmentation(
             ssd_dim, means), AnnotationTransform())
 
@@ -157,6 +157,7 @@ def train():
     batch_iterator = None
     data_loader = data.DataLoader(dataset, batch_size, num_workers=args.num_workers,
                                   shuffle=True, pin_memory=True, collate_fn = detection_collate)
+    scheduler = ReduceLROnPlateau(optimizer, 'min', min_lr = 1e-10, verbose = True)
     for iteration in range(args.start_iter, max_iter):
         if (not batch_iterator) or (iteration % epoch_size == 0):
             # create batch iterator
@@ -198,6 +199,7 @@ def train():
         t1 = time.time()
         loc_loss += loss_l.data[0]
         conf_loss += loss_c.data[0]
+        #scheduler.step(loss.data[0])
         if iteration % 10 == 0:
             print('Timer: %.4f sec.' % (t1 - t0))
             print('iter ' + repr(iteration) + ' || Loss_loc: %.4f Loss_conf %.4f ||' % (loss_l.data[0], loss_c.data[0]))
@@ -228,6 +230,7 @@ def train():
                 os.mkdir(save_dir)
             torch.save(ssd_net.state_dict(), os.path.join(save_dir,'ssd300_0712_' +
                        repr(iteration) + '.pth'))
+        
         torch.save(ssd_net.state_dict(), args.save_folder + '' + args.version + '.pth')
 
 

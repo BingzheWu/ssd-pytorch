@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 import torch.utils.model_zoo as model_zoo
-
+from . import mobilenet
 import sys
 sys.path.append("../")
 from layers import *
@@ -38,6 +38,8 @@ def build_ssd(phase, size = 300, num_classes = 21, net = 'resnet', args = None):
         if phase == 'train':
             vgg_weights = torch.load(args.save_folder+args.basenet)
             ssd_detector.vgg.load_state_dict(vgg_weights)
+    if net == 'mobilenet_v1':
+        ssd_detector = mobilenet.SSD(phase, mobilenet.mobilenet_v1(), num_classes)
     return ssd_detector
 
 def test_build_ssd():

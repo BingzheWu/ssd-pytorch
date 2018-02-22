@@ -11,7 +11,7 @@ from data import VOCroot, VOC_CLASSES as labelmap
 from PIL import Image
 from data import AnnotationTransform, VOCDetection, BaseTransform, VOC_CLASSES
 import torch.utils.data as data
-from ssd import build_ssd
+from models.model_factory import build_ssd
 
 parser = argparse.ArgumentParser(description='Single Shot MultiBox Detection')
 parser.add_argument('--trained_model', default='weights/ssd_300_VOC0712.pth',
@@ -74,7 +74,8 @@ def test_net(save_folder, net, cuda, testset, transform, thresh):
 if __name__ == '__main__':
     # load net
     num_classes = len(VOC_CLASSES) + 1 # +1 background
-    net = build_ssd('test', 300, num_classes) # initialize SSD
+    #net = build_ssd('test', 300, num_classes) # initialize SSD
+    net = build_ssd('train', 300, num_classes, args.arch, args)
     net.load_state_dict(torch.load(args.trained_model))
     net.eval()
     print('Finished loading model!')

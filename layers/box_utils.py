@@ -9,10 +9,11 @@ def point_form(boxes):
     Return:
         boxes: (tensor) Converted xmin, ymin, xmax, ymax form of boxes.
     """
+    '''
     return torch.cat((boxes[:, :2] - boxes[:, 2:]/2,     # xmin, ymin
                      boxes[:, :2] + boxes[:, 2:]/2), 1)  # xmax, ymax
-
-
+    '''
+    return torch.cat((boxes[:, :2], boxes[:, 2:]), 1)
 def center_size(boxes):
     """ Convert prior_boxes to (cx, cy, w, h)
     representation for comparison to center-size form ground truth data.
@@ -124,11 +125,14 @@ def encode(matched, priors, variances):
     """
 
     # dist b/t match center and prior's center
-    g_cxcy = (matched[:, :2] + matched[:, 2:])/2 - priors[:, :2]
+    #g_cxcy = (matched[:, :2] + matched[:, 2:])/2 - priors[:, :2]
+    g_cxcy = (matched[:, :2]+matched[:, 2:])/2. - (priors[:,:2]+priors[:, 2:]) / 2.
     # encode variance
-    g_cxcy /= (variances[0] * priors[:, 2:])
+    #g_cxcy /= (variances[0] * priors[:, 2:])
+    g_cxcy /= (variances[0]+(priors[:, 2:]-priors[:,:2]))
     # match wh / prior wh
-    g_wh = (matched[:, 2:] - matched[:, :2]) / priors[:, 2:]
+    #g_wh = (matched[:, 2:] - matched[:, :2]) / priors[:, 2:]
+    g_wh = (matched[:, 2:]-matched[:, :2]) / (priors[:, 2:]-priors[:, :2])
     g_wh = torch.log(g_wh) / variances[1]
     # return target for smooth_l1_loss
     return torch.cat([g_cxcy, g_wh], 1)  # [num_priors,4]
@@ -149,8 +153,8 @@ def decode(loc, priors, variances):
     """
 
     boxes = torch.cat((
-        priors[:, :2] + loc[:, :2] * variances[0] * priors[:, 2:],
-        priors[:, 2:] * torch.exp(loc[:, 2:] * variances[1])), 1)
+        (priors[:, :2] + priors[:, 2:])/2.0 + loc[:, :2] * variances[0] *(priors[:, 2:]-priors[:, :2]),
+        (priors[:, 2:]-priors[:, :2]) * torch.exp(loc[:, 2:] * variances[1])), 1)
     boxes[:, :2] -= boxes[:, 2:] / 2
     boxes[:, 2:] += boxes[:, :2]
     return boxes

@@ -1,3 +1,4 @@
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -7,7 +8,7 @@ from torchvision.models.squeezenet import SqueezeNet, Fire
 from torchvision.models.resnet import ResNet, BasicBlock
 
 import sys
-#sys.path.append("../")
+sys.path.append("../")
 from layers import *
 from data import v_resnet,v3,v_sq
 import os
@@ -63,77 +64,49 @@ class SSD(nn.Module):
             print('Finished!')
         else:
             print('Sorry only .pth and .pkl files supported.')
-
-def add_extras(in_channels, batch_norm = False):
-    layers = []    
-    flag = False
-    for k, v in enumerate(cfg):
-        pass
-class resnet_feature(ResNet):
-    def __init__(self, block, layers):
-        super(resnet_feature,self).__init__(block, layers)
-        self.layer5 = self._make_layer(block, 512, 2, stride = 2)
-        self.layer6 = self._make_layer(block, 512, 2, stride = 2)
-        #self.layer7 = self._make_layer(block, 512, 2, stride = 2)
-        self.layer7 = []
-        self.layer7 += [nn.Conv2d(512, 512, kernel_size = 3, padding = 1)]
-        self.layer7 += [nn.BatchNorm2d(512), nn.ReLU(inplace = True)]
-        self.layer7 += [nn.MaxPool2d(kernel_size = 2, stride = 2, ceil_mode = False)]
-        self.layer7 = nn.Sequential(*self.layer7)
-    def forward(self, x):
-        source_features = []
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.relu(x)
-        x = self.maxpool(x)
-        x = self.layer1(x)
-        x = self.layer2(x)
-        source_features.append(x)
-        x = self.layer3(x)
-        source_features.append(x)
-        x = self.layer4(x)
-        source_features.append(x)
-        x = self.layer5(x)
-        source_features.append(x)
-        x = self.layer6(x)
-        source_features.append(x)
-        x = self.layer7(x)
-        source_features.append(x)
-        return source_features
+def conv_bn(inp, oup, stride, k_size = 3, paddings = 1):
+    return nn.Sequential(
+            nn.Conv2d(inp, oup, k_size, stride, paddings),
+            nn.BatchNorm2d(oup),
+            nn.ReLU(inplace = True)
+        )
 class sq_feature(nn.Module):
     def __init__(self, verion = 1.0, num_classes = 1000):
         super(sq_feature, self).__init__()
         self.num_classes = num_classes
         self.conv1 = nn.Sequential(
-            nn.Conv2d(3, 96, kernel_size = 7, stride = 2),
+            nn.Conv2d(3, 64, kernel_size = 3, stride = 2),
             nn.ReLU(inplace = True),
             nn.MaxPool2d(kernel_size=3, stride = 2, ceil_mode = True),
-            Fire(96, 16, 64, 64),
+            Fire(64, 16, 64, 64),
             Fire(128, 16, 64, 64),
+            nn.MaxPool2d(kernel_size = 3, stride = 2, ceil_mode = True),
             Fire(128, 32, 128, 128),
-            nn.MaxPool2d(kernel_size = 3, stride = 2, ceil_mode = True)
+            Fire(256, 32, 128, 128),
         )
         #self.Fire1 = Fire(256, 32, 128, 128)
         self.Fire1 = nn.Sequential(
-            Fire(256, 32, 128, 128),
-            nn.MaxPool2d(kernel_size = 2, stride = 2)
-        )
-        #self.Fire2 = Fire(256, 48, 192, 192)
-        self.Fire2 = nn.Sequential(
+            nn.MaxPool2d(kernel_size = 3, stride = 2, ceil_mode = True),
             Fire(256, 48, 192, 192),
-            nn.MaxPool2d(kernel_size = 2, stride = 2)
-        )
-        #self.Fire3 = Fire(384, 48, 192, 192)
-        self.Fire3 = nn.Sequential(
             Fire(384, 48, 192, 192),
-            nn.MaxPool2d(kernel_size = 2, stride = 2)
-        )
-        self.Fire4 = Fire(384, 64, 256, 256)
-        self.pool4 = nn.MaxPool2d(kernel_size = 3, stride = 2, ceil_mode = True)
-        #self.Fire5 = Fire(512, 64, 256, 256)
-        self.Fire5 = nn.Sequential(
+            Fire(384, 64, 256, 256),
             Fire(512, 64, 256, 256),
-            nn.MaxPool2d(2, 2)
+        )
+        self.Fire2 = nn.Sequential(
+            nn.MaxPool2d(kernel_size = 3, stride = 2, ceil_mode = True),
+            Fire(512, 96, 384, 384),
+        )
+        self.Fire3 = nn.Sequential(
+            nn.MaxPool2d(kernel_size = 3, stride = 2, ceil_mode = True),
+            Fire(768, 96, 384, 384),
+        )
+        self.Fire4 = nn.Sequential(
+            conv_bn(768, 128, 1, 1),
+            conv_bn(128, 128, 2),
+        )
+        self.Fire5 = nn.Sequential(
+            conv_bn(128, 64, 1, 1),
+            conv_bn(64, 128, 2)
         )
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -151,7 +124,6 @@ class sq_feature(nn.Module):
         x = self.Fire3(x)
         source_features.append(x)
         x = self.Fire4(x)
-        x = self.pool4(x)
         source_features.append(x)
         x = self.Fire5(x)
         source_features.append(x)
@@ -161,7 +133,7 @@ class sq_feature(nn.Module):
 
 
 def test_feature_extrator():
-    sq = resnet_feature(BasicBlock, [2,2,2,2])
+    sq = sq_feature()
     #resnet = resnet_feature(BasicBlock, [2,2,2,2])
     
     inputs = torch.zeros((1,3, 300,300))

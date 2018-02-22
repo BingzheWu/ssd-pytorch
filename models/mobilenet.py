@@ -7,9 +7,9 @@ from torchvision.models.squeezenet import SqueezeNet, Fire
 from torchvision.models.resnet import ResNet, BasicBlock
 
 import sys
-#sys.path.append("../")
+sys.path.append("../")
 from layers import *
-from data import v_resnet,v3,v_sq
+from data import v_resnet,v3,v_mobilenet
 import os
 
 class SSD(nn.Module):
@@ -18,14 +18,14 @@ class SSD(nn.Module):
         self.phase = phase
         self.num_classes = num_classes
         self.base = base
-        self.priorbox = PriorBox(v_resnet)
+        self.priorbox = PriorBox(v_mobilenet)
         self.priors = Variable(self.priorbox.forward(), volatile = True)
         self.size = 300
         self.make_loc_and_conf()
         if phase == 'test':
             self.softmax = nn.Softmax()
             self.detect = Detect(num_classes, 3, 10, 0.01, 0.45)
-    def make_loc_and_conf(self, out_channels = [128, 256, 512, 512, 512, 512], num_boxes = [3,6,6,6,6, 6]):
+    def make_loc_and_conf(self, out_channels = [512, 1024, 512, 256, 256, 128], num_boxes = [3,6,6,6,6, 6]):
         loc_layers = []
         conf_layers = []
         for out_channel, num in zip(out_channels, num_boxes):
@@ -63,110 +63,86 @@ class SSD(nn.Module):
             print('Finished!')
         else:
             print('Sorry only .pth and .pkl files supported.')
-
-def add_extras(in_channels, batch_norm = False):
-    layers = []    
-    flag = False
-    for k, v in enumerate(cfg):
-        pass
-class resnet_feature(ResNet):
-    def __init__(self, block, layers):
-        super(resnet_feature,self).__init__(block, layers)
-        self.layer5 = self._make_layer(block, 512, 2, stride = 2)
-        self.layer6 = self._make_layer(block, 512, 2, stride = 2)
-        #self.layer7 = self._make_layer(block, 512, 2, stride = 2)
-        self.layer7 = []
-        self.layer7 += [nn.Conv2d(512, 512, kernel_size = 3, padding = 1)]
-        self.layer7 += [nn.BatchNorm2d(512), nn.ReLU(inplace = True)]
-        self.layer7 += [nn.MaxPool2d(kernel_size = 2, stride = 2, ceil_mode = False)]
-        self.layer7 = nn.Sequential(*self.layer7)
+class mobilenet_v1(nn.Module):
+    def __init__(self):
+        super(mobilenet_v1, self).__init__()
+        def conv_bn(inp, oup, stride, k_size = 3, paddings = 1):
+            return nn.Sequential(
+            nn.Conv2d(inp, oup, k_size, stride, paddings),
+            nn.BatchNorm2d(oup),
+            nn.ReLU(inplace = True)
+        )
+        def conv_dw(inp, oup, stride):
+            return nn.Sequential(
+            nn.Conv2d(inp, inp, 3, stride, 1, groups = inp, bias = False),
+            nn.BatchNorm2d(inp),
+            nn.ReLU(inplace = True),
+            nn.Conv2d(inp, oup, 1, 1, 0, bias = False),
+            nn.BatchNorm2d(oup),
+            nn.ReLU(inplace = True)
+        )
+        self.init_conv = conv_bn(3, 32, 2)
+        self.layer1 = nn.Sequential(
+            conv_dw(32, 64, 1),
+            conv_dw(64, 128, 2)
+        )
+        self.layer2 = nn.Sequential(
+            conv_dw(128, 128, 1),
+            conv_dw(128, 256, 2)
+        )
+        self.layer3 = nn.Sequential(
+            conv_dw(256, 256, 1),
+            conv_dw(256, 512, 2)
+        )
+        self.layer4 = nn.Sequential(*[conv_dw(512, 512, 1) for i in range(5)])
+        self.layer5 = conv_dw(512, 1024, 2)
+        self.layer6 = conv_dw(1024, 1024, 1)
+        self.layer7 = nn.Sequential(
+            conv_bn(1024, 256, 1, 1, 0),
+            conv_bn(256, 512, 2, 3),
+        )
+        self.layer8 = nn.Sequential(
+            conv_bn(512, 128, 1, 1, 0),
+            conv_bn(128, 256, 2, 3)
+        )
+        self.layer9 = nn.Sequential(
+            conv_bn(256, 128, 1, 1, 0),
+            conv_bn(128, 256, 2, 3)
+        )
+        self.layer10 = nn.Sequential(
+            conv_bn(256, 64, 1, 1, 0),
+            nn.Conv2d(64, 128, 3, 2, 1),
+            nn.ReLU(inplace = True)
+        )
     def forward(self, x):
         source_features = []
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.relu(x)
-        x = self.maxpool(x)
+        x = self.init_conv(x)
         x = self.layer1(x)
         x = self.layer2(x)
-        source_features.append(x)
         x = self.layer3(x)
-        source_features.append(x)
         x = self.layer4(x)
         source_features.append(x)
         x = self.layer5(x)
-        source_features.append(x)
         x = self.layer6(x)
         source_features.append(x)
         x = self.layer7(x)
         source_features.append(x)
-        return source_features
-class sq_feature(nn.Module):
-    def __init__(self, verion = 1.0, num_classes = 1000):
-        super(sq_feature, self).__init__()
-        self.num_classes = num_classes
-        self.conv1 = nn.Sequential(
-            nn.Conv2d(3, 96, kernel_size = 7, stride = 2),
-            nn.ReLU(inplace = True),
-            nn.MaxPool2d(kernel_size=3, stride = 2, ceil_mode = True),
-            Fire(96, 16, 64, 64),
-            Fire(128, 16, 64, 64),
-            Fire(128, 32, 128, 128),
-            nn.MaxPool2d(kernel_size = 3, stride = 2, ceil_mode = True)
-        )
-        #self.Fire1 = Fire(256, 32, 128, 128)
-        self.Fire1 = nn.Sequential(
-            Fire(256, 32, 128, 128),
-            nn.MaxPool2d(kernel_size = 2, stride = 2)
-        )
-        #self.Fire2 = Fire(256, 48, 192, 192)
-        self.Fire2 = nn.Sequential(
-            Fire(256, 48, 192, 192),
-            nn.MaxPool2d(kernel_size = 2, stride = 2)
-        )
-        #self.Fire3 = Fire(384, 48, 192, 192)
-        self.Fire3 = nn.Sequential(
-            Fire(384, 48, 192, 192),
-            nn.MaxPool2d(kernel_size = 2, stride = 2)
-        )
-        self.Fire4 = Fire(384, 64, 256, 256)
-        self.pool4 = nn.MaxPool2d(kernel_size = 3, stride = 2, ceil_mode = True)
-        #self.Fire5 = Fire(512, 64, 256, 256)
-        self.Fire5 = nn.Sequential(
-            Fire(512, 64, 256, 256),
-            nn.MaxPool2d(2, 2)
-        )
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_uniform(m.weight.data)
-                if m.bias is not None:
-                    m.bias.data.zero_()
-    def forward(self, x):
-        source_features = []
-        x = self.conv1(x)
+        x = self.layer8(x)
         source_features.append(x)
-        x = self.Fire1(x)
+        x = self.layer9(x)
         source_features.append(x)
-        x = self.Fire2(x)
-        source_features.append(x)
-        x = self.Fire3(x)
-        source_features.append(x)
-        x = self.Fire4(x)
-        x = self.pool4(x)
-        source_features.append(x)
-        x = self.Fire5(x)
+        x = self.layer10(x)
         source_features.append(x)
         return source_features
-
-
 
 
 def test_feature_extrator():
-    sq = resnet_feature(BasicBlock, [2,2,2,2])
+    sq = mobilenet_v1()
     #resnet = resnet_feature(BasicBlock, [2,2,2,2])
     
     inputs = torch.zeros((1,3, 300,300))
     inputs = Variable(inputs)
-    features = sq(inputs)
+    features = sq.forward(inputs)
     for feature in features:
         print(feature.size())
 
