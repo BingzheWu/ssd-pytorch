@@ -1,0 +1,24 @@
+detector_type: base_ssd
+running_params:
+    use_cuda: True
+    start_iterations: 0
+    iterations: 300000
+checkpoint_params:
+    resume: False
+    exp_dir: exp/base_ssd_mobilenetv1/tunnle_car/
+dataset:
+    name: tunnle_car
+    train_root: /home/bingzhe/datasets/otureo_car_detect/training_dataset/
+    val_root: /home/bingzhe/datasets/otureo_car_detect/training_dataset/
+detector_params:
+    num_classes: 11
+optim_params:
+    type: SGD
+    init_lr: 0.001
+    momentum: 0.9
+    weight_decay: 0.0001
+ssd_params:
+    ssd_dim: 300
+    backbone_arch: mobilenet_v1
+    batch_size: 32
+    anchor_version: v1

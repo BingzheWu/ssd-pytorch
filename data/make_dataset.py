@@ -4,7 +4,9 @@ import data
 #from torchvision.datasets import CocoDetection
 from .coco import CocoDetection, AnnotationTransform
 from utils.augmentations import SSDAugmentation
-from .voc0712 import VOCDetection 
+from .voc0712 import VOCDetection
+from .tunnle_car import tunnle_car_dataset
+import data.tunnle_car
 def make_dataset(dataset_name, dataroot, annFile = None, means = None, imageSize = 300):
     if dataset_name == 'coco':
         trans = torchvision.transforms
@@ -19,6 +21,12 @@ def make_dataset(dataset_name, dataroot, annFile = None, means = None, imageSize
         train_sets = [('2007', 'trainval'), ('2012', 'trainval')]
         dataset = VOCDetection(dataroot, train_sets, SSDAugmentation(
             imageSize, means), data.AnnotationTransform())
+    if dataset_name == 'tunnle_car':
+        means = (104.0, 117.0, 123.0)
+        train_set = [1]
+        dataset = tunnle_car_dataset(dataroot, train_set, SSDAugmentation(
+            imageSize, means), data.tunnle_car.AnnotationTransform()
+        )
     return dataset
 def test_coco_detect():
     dataset_name = 'coco_obj_detect'
