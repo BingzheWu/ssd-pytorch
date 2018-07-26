@@ -24,7 +24,7 @@ class SSD(nn.Module):
         self.make_loc_and_conf()
         if phase == 'test':
             self.softmax = nn.Softmax()
-            self.detect = Detect(num_classes, 3, 10, 0.01, 0.45)
+            self.detect = Detect(num_classes, 3, 10, 0.01, 0.5)
     def make_loc_and_conf(self, out_channels = [512, 1024, 512, 256, 256, 128], num_boxes = [3,6,6,6,6, 6]):
         loc_layers = []
         conf_layers = []
