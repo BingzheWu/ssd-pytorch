@@ -23,7 +23,7 @@ def make_dataset(dataset_name, dataroot, annFile = None, means = None, imageSize
             imageSize, means), data.AnnotationTransform())
     if dataset_name == 'tunnle_car':
         means = (104.0, 117.0, 123.0)
-        train_set = [1]
+        train_set = [1,2,3,4,6,7,8]
         dataset = tunnle_car_dataset(dataroot, train_set, SSDAugmentation(
             imageSize, means), data.tunnle_car.AnnotationTransform()
         )

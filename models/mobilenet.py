@@ -35,6 +35,8 @@ class SSD(nn.Module):
         self.conf = nn.ModuleList(conf_layers)
     def forward(self, x):
         features = self.base(x)
+        if self.phase == 'export':
+            return features
         loc = list()
         conf = list()
         for (feature, l, c) in zip(features, self.loc, self.conf):

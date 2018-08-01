@@ -4,14 +4,14 @@ running_params:
     start_iterations: 0
     iterations: 300000
 checkpoint_params:
-    resume: False
+    resume: exp/base_ssd_mobilenetv1/tunnle_car/weights/ssd_base170000.pth
     exp_dir: exp/base_ssd_mobilenetv1/tunnle_car/
 dataset:
     name: tunnle_car
-    train_root: /home/bingzhe/datasets/otureo_car_detect/training_dataset/
-    val_root: /home/bingzhe/datasets/otureo_car_detect/training_dataset/
+    train_root: /home/bingzhe/datasets/otureo_car_detect/training_300x300/
+    val_root: /home/bingzhe/datasets/otureo_car_detect/training_300x300/
 detector_params:
-    num_classes: 11
+    num_classes: 8
 optim_params:
     type: SGD
     init_lr: 0.001
@@ -20,5 +20,5 @@ optim_params:
 ssd_params:
     ssd_dim: 300
     backbone_arch: mobilenet_v1
-    batch_size: 32
+    batch_size: 64
     anchor_version: v1

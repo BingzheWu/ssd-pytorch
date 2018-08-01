@@ -5,8 +5,7 @@ import cv2
 import xml.etree.cElementTree as ET
 import torch
 import numpy as np
-CLASSES = ('car', 'person', 'bicycle', 
-'motorbike', 'bus', 'truck', 'minibus', 'minitruck', 'suv' ,'dangerouscar')
+CLASSES = ('car', 'bus', 'truck', 'minibus', 'minitruck', 'suv' ,'dangerouscar')
 #CLASSES = ('car')
 class AnnotationTransform(object):
     """Transforms a VOC annotation into a Tensor of bbox coords and label index
@@ -21,7 +20,7 @@ class AnnotationTransform(object):
         width (int): width
     """
 
-    def __init__(self, class_to_ind=None, keep_difficult=True):
+    def __init__(self, class_to_ind=None, keep_difficult = True):
         self.class_to_ind = class_to_ind or dict(
             zip(CLASSES, range(len(CLASSES))))
         self.keep_difficult = keep_difficult
@@ -41,7 +40,8 @@ class AnnotationTransform(object):
                 continue
             name = obj.find('name').text.lower().strip()
             bbox = obj.find('bndbox')
-
+            if name not in CLASSES:
+                continue
             pts = ['xmin', 'ymin', 'xmax', 'ymax']
             bndbox = []
             for i, pt in enumerate(pts):
